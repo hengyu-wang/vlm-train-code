@@ -725,8 +725,8 @@ class Qwen2_5_VLAttention(nn.Module):
         query_states = query_states.view(bsz, q_len, -1, self.head_dim).transpose(1, 2)
         # --- 修改部分开始 ---
         # 注意：这里我们选择在 view 之后，transpose 之前添加 embedding，保持与Qwen2的修改一致
-        key_states = key_states.view(bsz, q_len, -1, self.head_dim)
-        value_states = value_states.view(bsz, q_len, -1, self.head_dim)
+        key_states = key_states.view(bsz, q_len, self.num_key_value_heads, self.head_dim)
+        value_states = value_states.view(bsz, q_len, self.num_key_value_heads, self.head_dim)
 
         # +++ 新增代码 +++
         if seg_ids is not None:
@@ -980,7 +980,15 @@ class Qwen2_5_VLTextModel(Qwen2_5_VLPreTrainedModel):
             if seg_ids is not None:
                 # 我们用 seg_ids 来构建 mask，它已经包含了 padding 信息（padding 处为 0）
                 # 注意 dtype 要和模型保持一致
-                custom_attention_mask = prepare_4d_attention_mask(seg_ids, dtype=inputs_embeds.dtype)
+                # import numpy as np
+                # # ① 转为 NumPy（方便使用 savetxt）
+                # seg_ids_np = attention_mask.detach().cpu().numpy()
+                # # ② 保存为 txt，使用空格分隔
+                # np.savetxt("/mnt/bn/smart-customer-service/users/wanghongyu/ParaThinker/train-qwen2_5vl/data/mask.txt", seg_ids_np, fmt="%d", delimiter=" ")
+                # print("✅ seg_ids 已保存为 seg_ids.txt")
+                # print("当前的attention_mask:",attention_mask)
+                # print("当前的seg_ids:",seg_ids)
+                custom_attention_mask = prepare_4d_attention_mask(attention_mask, dtype=inputs_embeds.dtype)
                 causal_mask_mapping = {
                     "full_attention": custom_attention_mask,
                     "sliding_attention": custom_attention_mask, # 同样应用于 sliding attention
